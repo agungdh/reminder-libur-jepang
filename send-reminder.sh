@@ -205,39 +205,48 @@ esac
 
 log "Sending message..."
 
-# Mark chat as read first (anti-detection)
-MARK_READ_URL="${WAHA_URL}/api/default/chats/${WAHA_CHATS}/messages/read"
-MARK_READ_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${MARK_READ_URL}" \
-    -H "Content-Type: application/json" \
-    -H "X-Api-Key: ${WAHA_API_KEY}")
+# Loop through each recipient
+for CHAT_ID in ${WAHA_CHATS}; do
+    log "Sending to ${CHAT_ID}..."
 
-MARK_READ_STATUS=$(echo "${MARK_READ_RESPONSE}" | tail -n1)
-log "Mark chat read: HTTP ${MARK_READ_STATUS}"
+    # Mark chat as read first (anti-detection)
+    MARK_READ_URL="${WAHA_URL}/api/default/chats/${CHAT_ID}/messages/read"
+    MARK_READ_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${MARK_READ_URL}" \
+        -H "Content-Type: application/json" \
+        -H "X-Api-Key: ${WAHA_API_KEY}")
 
-# Small delay to appear more natural
-sleep 1
+    MARK_READ_STATUS=$(echo "${MARK_READ_RESPONSE}" | tail -n1)
+    log "Mark chat read: HTTP ${MARK_READ_STATUS}"
 
-# Send message
-SEND_TEXT_URL="${WAHA_URL}/api/sendText"
-SEND_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SEND_TEXT_URL}" \
-    -H "Content-Type: application/json" \
-    -H "X-Api-Key: ${WAHA_API_KEY}" \
-    -d "{
-        \"chatId\": \"${WAHA_CHATS}\",
-        \"text\": \"${MESSAGE}\",
-        \"session\": \"default\"
-    }")
+    # Small delay to appear more natural
+    sleep 1
 
-SEND_STATUS=$(echo "${SEND_RESPONSE}" | tail -n1)
-SEND_BODY=$(echo "${SEND_RESPONSE}" | head -n-1)
+    # Send message
+    SEND_TEXT_URL="${WAHA_URL}/api/sendText"
+    SEND_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SEND_TEXT_URL}" \
+        -H "Content-Type: application/json" \
+        -H "X-Api-Key: ${WAHA_API_KEY}" \
+        -d "{
+            \"chatId\": \"${CHAT_ID}\",
+            \"text\": \"${MESSAGE}\",
+            \"session\": \"default\"
+        }")
 
-log "Send message response: HTTP ${SEND_STATUS}"
-log "Response body: ${SEND_BODY}"
+    SEND_STATUS=$(echo "${SEND_RESPONSE}" | tail -n1)
+    SEND_BODY=$(echo "${SEND_RESPONSE}" | head -n-1)
 
-if [ "${SEND_STATUS}" = "200" ] || [ "${SEND_STATUS}" = "201" ]; then
-    log "✅ Message sent successfully"
-    exit 0
-else
-    log "❌ Failed to send message"
-    exit 1
-fi
+    log "Send message response: HTTP ${SEND_STATUS}"
+    log "Response body: ${SEND_BODY}"
+
+    if [ "${SEND_STATUS}" = "200" ] || [ "${SEND_STATUS}" = "201" ]; then
+        log "✅ Message sent to ${CHAT_ID}"
+    else
+        log "❌ Failed to send to ${CHAT_ID}"
+    fi
+
+    # Delay between recipients
+    sleep 2
+done
+
+log "Done!"
+exit 0
