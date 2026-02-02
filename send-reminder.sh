@@ -49,32 +49,34 @@ else
 fi
 
 # Determine which dates to check based on day of week
+# Logic:
+# - Sat/Sun: only check Monday (don't send "today is holiday" on weekends)
+# - Mon-Fri: check today, and check tomorrow if it's NOT Saturday AND NOT Sunday
+TOMORROW_DOW=$((${CURRENT_DOW} % 7 + 1))  # Tomorrow's day of week (1=Mon, 7=Sun)
+
 CHECK_DATES=()
 DAYS_UNTIL=()
 
-case ${CURRENT_DOW} in
-    1|2|3|4)  # Monday-Thursday: check tomorrow
-        CHECK_DATES=("${TOMORROW}")
-        DAYS_UNTIL=(1)
-        ;;
-    5)  # Friday: check Saturday, Sunday, Monday
-        SAT=$(date -d "${TODAY} +1 day" +%Y-%m-%d)
-        SUN=$(date -d "${TODAY} +2 days" +%Y-%m-%d)
-        MON=$(date -d "${TODAY} +3 days" +%Y-%m-%d)
-        CHECK_DATES=("${SAT}" "${SUN}" "${MON}")
-        DAYS_UNTIL=(1 2 3)
-        ;;
-    6|7)  # Saturday-Sunday: only check Monday
-        MON=$(date -d "${TODAY} +1 day" +%Y-%m-%d)
-        if [ ${CURRENT_DOW} -eq 6 ]; then
-            # Saturday, Monday is +2 days
-            MON=$(date -d "${TODAY} +2 days" +%Y-%m-%d)
-        fi
-        CHECK_DATES=("${MON}")
-        DAYS_UNTIL=($(date -d "${MON}" +%s))
-        DAYS_UNTIL=(($(($(date -d "${MON}" +%s) - $(date -d "${TODAY}" +%s))) / 86400))
-        ;;
-esac
+if [ ${CURRENT_DOW} -eq 6 ]; then
+    # Saturday: check Monday (2 days away)
+    MON=$(date -d "${TODAY} +2 days" +%Y-%m-%d)
+    CHECK_DATES=("${MON}")
+    DAYS_UNTIL=(2)
+elif [ ${CURRENT_DOW} -eq 7 ]; then
+    # Sunday: check Monday (1 day away)
+    MON=$(date -d "${TODAY} +1 day" +%Y-%m-%d)
+    CHECK_DATES=("${MON}")
+    DAYS_UNTIL=(1)
+else
+    # Weekday: check today first
+    CHECK_DATES=("${TODAY}")
+    DAYS_UNTIL=(0)
+    # Also check tomorrow if it's not Saturday (6) and not Sunday (7)
+    if [ ${TOMORROW_DOW} -ne 6 ] && [ ${TOMORROW_DOW} -ne 7 ]; then
+        CHECK_DATES+=("${TOMORROW}")
+        DAYS_UNTIL+=(1)
+    fi
+fi
 
 # Test mode - use TEST_HOUR if set
 if [ -n "${TEST_HOUR}" ]; then
@@ -139,17 +141,19 @@ FOUND_HOLIDAY=0
 TARGET_DATE=""
 DAYS_UNTIL_HOLIDAY=0
 
-# First check if today is a holiday (special case)
-HOLIDAY_TODAY=$(get_holiday "${TODAY}")
-if [ -n "${HOLIDAY_TODAY}" ] && [ "${HOLIDAY_TODAY}" != "null" ]; then
-    FOUND_HOLIDAY=1
-    TARGET_DATE="${TODAY}"
-    DAYS_UNTIL_HOLIDAY=0
-    HOLIDAY_JSON="${HOLIDAY_TODAY}"
-    NAME_ID=$(get_field "${HOLIDAY_JSON}" "name_id")
-    NAME_JA=$(get_field "${HOLIDAY_JSON}" "name_ja")
-    NAME_EN=$(get_field "${HOLIDAY_JSON}" "name_en")
-    log "INFO: Today is ${NAME_ID}"
+# First check if today is a holiday (skip on weekends)
+if [ ${CURRENT_DOW} -ne 6 ] && [ ${CURRENT_DOW} -ne 7 ]; then
+    HOLIDAY_TODAY=$(get_holiday "${TODAY}")
+    if [ -n "${HOLIDAY_TODAY}" ] && [ "${HOLIDAY_TODAY}" != "null" ]; then
+        FOUND_HOLIDAY=1
+        TARGET_DATE="${TODAY}"
+        DAYS_UNTIL_HOLIDAY=0
+        HOLIDAY_JSON="${HOLIDAY_TODAY}"
+        NAME_ID=$(get_field "${HOLIDAY_JSON}" "name_id")
+        NAME_JA=$(get_field "${HOLIDAY_JSON}" "name_ja")
+        NAME_EN=$(get_field "${HOLIDAY_JSON}" "name_en")
+        log "INFO: Today is ${NAME_ID}"
+    fi
 fi
 
 # If today is not a holiday, check upcoming dates
@@ -194,13 +198,11 @@ Hari ini: **${NAME_ID}** 🇯🇵 | Today: **${NAME_EN}** 🇯🇵
 
 Happy holiday! 🎉"
         else
-            # H-1, H-2, H-3
+            # H-1 or H-2
             if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
                 DAYS_TEXT="Besok | Tomorrow"
-            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
-                DAYS_TEXT="Lusa | In 2 days"
             else
-                DAYS_TEXT="Dalam ${DAYS_UNTIL_HOLIDAY} hari | In ${DAYS_UNTIL_HOLIDAY} days"
+                DAYS_TEXT="Lusa | In 2 days"
             fi
             MESSAGE="🌅 *PENGINGAT LIBUR JEPANG - JAPAN HOLIDAY REMINDER*
 
@@ -220,13 +222,11 @@ Jangan lupa persiapan ya! / Don't forget to prepare!"
 
 Selamat hari libur! / Happy holiday! 🇯🇵"
         else
-            # H-1, H-2, H-3
+            # H-1 or H-2
             if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
                 DAYS_TEXT="Besok | Tomorrow"
-            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
-                DAYS_TEXT="Lusa | In 2 days"
             else
-                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi | ${DAYS_UNTIL_HOLIDAY} days left"
+                DAYS_TEXT="Lusa | In 2 days"
             fi
             MESSAGE="☀️ *LIBUR JEPANG ${DAYS_TEXT}!*
 
@@ -246,13 +246,11 @@ Today: **${NAME_EN}** (${NAME_JA})
 
 Tetap semangat walaupun libur! / Enjoy your day! 💪"
         else
-            # H-1, H-2, H-3
+            # H-1 or H-2
             if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
                 DAYS_TEXT="Besok | Tomorrow"
-            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
-                DAYS_TEXT="Lusa | In 2 days"
             else
-                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi | ${DAYS_UNTIL_HOLIDAY} days left"
+                DAYS_TEXT="Lusa | In 2 days"
             fi
             MESSAGE="🌤️ *REMINDER LIBUR JEPANG ${DAYS_TEXT}*
 
@@ -272,13 +270,11 @@ ${NAME_JA} - ${NAME_EN}
 
 Enjoy your day! 🎌"
         else
-            # H-1, H-2, H-3
+            # H-1 or H-2
             if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
                 DAYS_TEXT="Besok"
-            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
-                DAYS_TEXT="Lusa"
             else
-                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi"
+                DAYS_TEXT="Lusa"
             fi
             MESSAGE="🌥️ *LIBUR JEPANG ${DAYS_TEXT}*
 
@@ -296,13 +292,11 @@ Siapin rencana liburnya! / Get ready for the holiday! 🎌"
 
 Semoga harimu menyenangkan! / Have a wonderful day! 🎉🇯🇵"
         else
-            # H-1, H-2, H-3
+            # H-1 or H-2
             if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
                 DAYS_TEXT="Besok | Tomorrow"
-            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
-                DAYS_TEXT="Lusa | In 2 days"
             else
-                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi | ${DAYS_UNTIL_HOLIDAY} days left"
+                DAYS_TEXT="Lusa | In 2 days"
             fi
             MESSAGE="🌆 *PENGINGAT MALAM - EVENING REMINDER*
 
