@@ -206,7 +206,7 @@ esac
 log "Sending message..."
 
 # Mark chat as read first (anti-detection)
-MARK_READ_URL="${WAHA_URL}/api/${WAHA_SESSION}/chats/${WAHA_CHATS}/messages/read"
+MARK_READ_URL="${WAHA_URL}/api/default/chats/${WAHA_CHATS}/messages/read"
 MARK_READ_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${MARK_READ_URL}" \
     -H "Content-Type: application/json" \
     -H "X-Api-Key: ${WAHA_API_KEY}")
@@ -225,7 +225,7 @@ SEND_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SEND_TEXT_URL}" \
     -d "{
         \"chatId\": \"${WAHA_CHATS}\",
         \"text\": \"${MESSAGE}\",
-        \"session\": \"${WAHA_SESSION}\"
+        \"session\": \"default\"
     }")
 
 SEND_STATUS=$(echo "${SEND_RESPONSE}" | tail -n1)
