@@ -46,8 +46,17 @@ fi
 
 # Test mode - use TEST_HOUR if set
 if [ -n "${TEST_HOUR}" ]; then
-    HOUR_INT=${TEST_HOUR}
-    log "TEST MODE: Using hour ${HOUR_INT}"
+    # Validate TEST_HOUR
+    case ${TEST_HOUR} in
+        6|9|12|15|18)
+            HOUR_INT=${TEST_HOUR}
+            log "TEST MODE: Using hour ${HOUR_INT}"
+            ;;
+        *)
+            log "ERROR: TEST_HOUR must be one of: 6, 9, 12, 15, 18"
+            exit 1
+            ;;
+    esac
 else
     # Valid reminder hours
     VALID_HOURS=("06" "09" "12" "15" "18")
@@ -221,13 +230,6 @@ esac
 
 log "Sending message..."
 
-# Build JSON payload using jq for proper escaping
-JSON_PAYLOAD=$(jq -n \
-    --arg chatId "" \
-    --arg text "${MESSAGE}" \
-    --arg session "default" \
-    '{chatId: $chatId, text: $text, session: $session}')
-
 # Loop through each recipient
 for CHAT_ID in ${WAHA_CHATS}; do
     log "Sending to ${CHAT_ID}..."
@@ -244,8 +246,12 @@ for CHAT_ID in ${WAHA_CHATS}; do
     # Small delay to appear more natural
     sleep 1
 
-    # Update chatId in JSON
-    FINAL_JSON=$(echo "${JSON_PAYLOAD}" | jq --arg chatId "${CHAT_ID}" '.chatId = $chatId')
+    # Build JSON payload using jq for proper escaping
+    FINAL_JSON=$(jq -n \
+        --arg chatId "${CHAT_ID}" \
+        --arg text "${MESSAGE}" \
+        --arg session "default" \
+        '{chatId: $chatId, text: $text, session: $session}')
 
     # Send message
     SEND_TEXT_URL="${WAHA_URL}/api/sendText"
