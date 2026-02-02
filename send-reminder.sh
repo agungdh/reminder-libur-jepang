@@ -217,6 +217,13 @@ esac
 
 log "Sending message..."
 
+# Build JSON payload using jq for proper escaping
+JSON_PAYLOAD=$(jq -n \
+    --arg chatId "" \
+    --arg text "${MESSAGE}" \
+    --arg session "default" \
+    '{chatId: $chatId, text: $text, session: $session}')
+
 # Loop through each recipient
 for CHAT_ID in ${WAHA_CHATS}; do
     log "Sending to ${CHAT_ID}..."
@@ -233,16 +240,15 @@ for CHAT_ID in ${WAHA_CHATS}; do
     # Small delay to appear more natural
     sleep 1
 
+    # Update chatId in JSON
+    FINAL_JSON=$(echo "${JSON_PAYLOAD}" | jq --arg chatId "${CHAT_ID}" '.chatId = $chatId')
+
     # Send message
     SEND_TEXT_URL="${WAHA_URL}/api/sendText"
     SEND_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${SEND_TEXT_URL}" \
         -H "Content-Type: application/json" \
         -H "X-Api-Key: ${WAHA_API_KEY}" \
-        -d "{
-            \"chatId\": \"${CHAT_ID}\",
-            \"text\": \"${MESSAGE}\",
-            \"session\": \"default\"
-        }")
+        -d "${FINAL_JSON}")
 
     SEND_STATUS=$(echo "${SEND_RESPONSE}" | tail -n1)
     SEND_BODY=$(echo "${SEND_RESPONSE}" | head -n-1)
