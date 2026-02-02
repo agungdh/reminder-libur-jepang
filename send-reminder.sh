@@ -35,8 +35,14 @@ fi
 
 # Get current date info
 CURRENT_HOUR=$(date +%H)
-TODAY=$(date +%Y-%m-%d)
-TOMORROW=$(date -d tomorrow +%Y-%m-%d)
+if [ -n "${TEST_DATE}" ]; then
+    TODAY="${TEST_DATE}"
+    TOMORROW=$(date -d "${TEST_DATE} +1 day" +%Y-%m-%d)
+    log "TEST MODE: Using date ${TODAY}"
+else
+    TODAY=$(date +%Y-%m-%d)
+    TOMORROW=$(date -d tomorrow +%Y-%m-%d)
+fi
 
 # Test mode - use TEST_HOUR if set
 if [ -n "${TEST_HOUR}" ]; then
