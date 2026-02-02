@@ -35,14 +35,46 @@ fi
 
 # Get current date info
 CURRENT_HOUR=$(date +%H)
+CURRENT_DOW=$(date +%u)  # 1=Monday, 7=Sunday
+
 if [ -n "${TEST_DATE}" ]; then
     TODAY="${TEST_DATE}"
     TOMORROW=$(date -d "${TEST_DATE} +1 day" +%Y-%m-%d)
-    log "TEST MODE: Using date ${TODAY}"
+    # For test mode, allow overriding DOW
+    CURRENT_DOW=${TEST_DOW:-$(date -d "${TEST_DATE}" +%u)}
+    log "TEST MODE: Using date ${TODAY} (DOW: ${CURRENT_DOW})"
 else
     TODAY=$(date +%Y-%m-%d)
     TOMORROW=$(date -d tomorrow +%Y-%m-%d)
 fi
+
+# Determine which dates to check based on day of week
+CHECK_DATES=()
+DAYS_UNTIL=()
+
+case ${CURRENT_DOW} in
+    1|2|3|4)  # Monday-Thursday: check tomorrow
+        CHECK_DATES=("${TOMORROW}")
+        DAYS_UNTIL=(1)
+        ;;
+    5)  # Friday: check Saturday, Sunday, Monday
+        SAT=$(date -d "${TODAY} +1 day" +%Y-%m-%d)
+        SUN=$(date -d "${TODAY} +2 days" +%Y-%m-%d)
+        MON=$(date -d "${TODAY} +3 days" +%Y-%m-%d)
+        CHECK_DATES=("${SAT}" "${SUN}" "${MON}")
+        DAYS_UNTIL=(1 2 3)
+        ;;
+    6|7)  # Saturday-Sunday: only check Monday
+        MON=$(date -d "${TODAY} +1 day" +%Y-%m-%d)
+        if [ ${CURRENT_DOW} -eq 6 ]; then
+            # Saturday, Monday is +2 days
+            MON=$(date -d "${TODAY} +2 days" +%Y-%m-%d)
+        fi
+        CHECK_DATES=("${MON}")
+        DAYS_UNTIL=($(date -d "${MON}" +%s))
+        DAYS_UNTIL=(($(($(date -d "${MON}" +%s) - $(date -d "${TODAY}" +%s))) / 86400))
+        ;;
+esac
 
 # Test mode - use TEST_HOUR if set
 if [ -n "${TEST_HOUR}" ]; then
@@ -102,68 +134,84 @@ get_field() {
     fi
 }
 
-# Check holidays
-HOLIDAY_TOMORROW=$(get_holiday "${TOMORROW}")
-HOLIDAY_TOMORROW_VALID=0
-if [ -n "${HOLIDAY_TOMORROW}" ] && [ "${HOLIDAY_TOMORROW}" != "null" ]; then
-    HOLIDAY_TOMORROW_VALID=1
-fi
+# Check holidays in the determined dates
+FOUND_HOLIDAY=0
+TARGET_DATE=""
+DAYS_UNTIL_HOLIDAY=0
 
+# First check if today is a holiday (special case)
 HOLIDAY_TODAY=$(get_holiday "${TODAY}")
-HOLIDAY_TODAY_VALID=0
 if [ -n "${HOLIDAY_TODAY}" ] && [ "${HOLIDAY_TODAY}" != "null" ]; then
-    HOLIDAY_TODAY_VALID=1
-fi
-
-# Determine which holiday to use
-if [ ${HOLIDAY_TOMORROW_VALID} -eq 1 ]; then
-    DAY_TYPE="h-1"
-    HOLIDAY_JSON="${HOLIDAY_TOMORROW}"
-    NAME_ID=$(get_field "${HOLIDAY_JSON}" "name_id")
-    NAME_JA=$(get_field "${HOLIDAY_JSON}" "name_ja")
-    NAME_EN=$(get_field "${HOLIDAY_JSON}" "name_en")
-    log "INFO: Tomorrow is ${NAME_ID}"
-elif [ ${HOLIDAY_TODAY_VALID} -eq 1 ]; then
-    DAY_TYPE="h"
+    FOUND_HOLIDAY=1
+    TARGET_DATE="${TODAY}"
+    DAYS_UNTIL_HOLIDAY=0
     HOLIDAY_JSON="${HOLIDAY_TODAY}"
     NAME_ID=$(get_field "${HOLIDAY_JSON}" "name_id")
     NAME_JA=$(get_field "${HOLIDAY_JSON}" "name_ja")
     NAME_EN=$(get_field "${HOLIDAY_JSON}" "name_en")
     log "INFO: Today is ${NAME_ID}"
-else
-    log "INFO: No holiday today or tomorrow"
+fi
+
+# If today is not a holiday, check upcoming dates
+if [ ${FOUND_HOLIDAY} -eq 0 ]; then
+    for i in "${!CHECK_DATES[@]}"; do
+        CHECK_DATE="${CHECK_DATES[$i]}"
+        HOLIDAY=$(get_holiday "${CHECK_DATE}")
+        if [ -n "${HOLIDAY}" ] && [ "${HOLIDAY}" != "null" ]; then
+            FOUND_HOLIDAY=1
+            TARGET_DATE="${CHECK_DATE}"
+            DAYS_UNTIL_HOLIDAY=${DAYS_UNTIL[$i]}
+            HOLIDAY_JSON="${HOLIDAY}"
+            NAME_ID=$(get_field "${HOLIDAY_JSON}" "name_id")
+            NAME_JA=$(get_field "${HOLIDAY_JSON}" "name_ja")
+            NAME_EN=$(get_field "${HOLIDAY_JSON}" "name_en")
+            log "INFO: Found holiday in ${DAYS_UNTIL_HOLIDAY} days: ${NAME_ID}"
+            break
+        fi
+    done
+fi
+
+if [ ${FOUND_HOLIDAY} -eq 0 ]; then
+    log "INFO: No upcoming holiday found"
     exit 0
+fi
+
+# Set DAY_TYPE based on days until holiday
+if [ ${DAYS_UNTIL_HOLIDAY} -eq 0 ]; then
+    DAY_TYPE="h"
+else
+    DAY_TYPE="h-${DAYS_UNTIL_HOLIDAY}"
 fi
 
 # Generate message based on hour and day type (bilingual: ID + EN)
 case ${HOUR_INT} in
     6)
-        if [ "${DAY_TYPE}" = "h-1" ]; then
-            MESSAGE="🌅 *PENGINGAT LIBUR JEPANG - JAPAN HOLIDAY REMINDER*
-
-Besok libur nasional Jepang: **${NAME_ID}** (${NAME_JA}) 🇯🇵
-Tomorrow is a Japanese national holiday: **${NAME_EN}** (${NAME_JA}) 🇯🇵
-
-Jangan lupa persiapan ya! / Don't forget to prepare!"
-        else
+        if [ "${DAY_TYPE}" = "h" ]; then
             MESSAGE="🌅 *SELAMAT LIBUR NASIONAL JEPANG - HAPPY JAPAN NATIONAL HOLIDAY!*
 
 Hari ini: **${NAME_ID}** 🇯🇵 | Today: **${NAME_EN}** 🇯🇵
 🎌 ${NAME_JA}
 
 Happy holiday! 🎉"
+        else
+            # H-1, H-2, H-3
+            if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
+                DAYS_TEXT="Besok | Tomorrow"
+            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
+                DAYS_TEXT="Lusa | In 2 days"
+            else
+                DAYS_TEXT="Dalam ${DAYS_UNTIL_HOLIDAY} hari | In ${DAYS_UNTIL_HOLIDAY} days"
+            fi
+            MESSAGE="🌅 *PENGINGAT LIBUR JEPANG - JAPAN HOLIDAY REMINDER*
+
+${DAYS_TEXT} libur nasional Jepang: **${NAME_ID}** (${NAME_JA}) 🇯🇵
+${DAYS_TEXT} is a Japanese national holiday: **${NAME_EN}** (${NAME_JA}) 🇯🇵
+
+Jangan lupa persiapan ya! / Don't forget to prepare!"
         fi
         ;;
     9)
-        if [ "${DAY_TYPE}" = "h-1" ]; then
-            MESSAGE="☀️ *BESOK LIBUR JEPANG - TOMORROW IS JAPAN HOLIDAY!*
-
-🎌 ${NAME_ID} | ${NAME_EN}
-📛 ${NAME_JA}
-📝 ${NAME_EN}
-
-Semoga rencanamu lancar! / Have a great plan!"
-        else
+        if [ "${DAY_TYPE}" = "h" ]; then
             MESSAGE="☀️ *HARI INI LIBUR JEPANG - TODAY IS JAPAN HOLIDAY!*
 
 🎌 ${NAME_ID} | ${NAME_EN}
@@ -171,34 +219,51 @@ Semoga rencanamu lancar! / Have a great plan!"
 📝 ${NAME_EN}
 
 Selamat hari libur! / Happy holiday! 🇯🇵"
+        else
+            # H-1, H-2, H-3
+            if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
+                DAYS_TEXT="Besok | Tomorrow"
+            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
+                DAYS_TEXT="Lusa | In 2 days"
+            else
+                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi | ${DAYS_UNTIL_HOLIDAY} days left"
+            fi
+            MESSAGE="☀️ *LIBUR JEPANG ${DAYS_TEXT}!*
+
+🎌 ${NAME_ID} | ${NAME_EN}
+📛 ${NAME_JA}
+📝 ${NAME_EN}
+
+Semoga rencanamu lancar! / Have a great plan!"
         fi
         ;;
     12)
-        if [ "${DAY_TYPE}" = "h-1" ]; then
-            MESSAGE="🌤️ *REMINDER H-1 LIBUR JEPANG*
-
-Besok: **${NAME_ID}** | Tomorrow: **${NAME_EN}**
-🇯🇵 ${NAME_JA}
-
-Happy holiday weekend! 🎉"
-        else
+        if [ "${DAY_TYPE}" = "h" ]; then
             MESSAGE="🌤️ *LIBUR NASIONAL JEPANG - JAPAN NATIONAL HOLIDAY*
 
 Hari ini: **${NAME_ID}** (${NAME_JA})
 Today: **${NAME_EN}** (${NAME_JA})
 
 Tetap semangat walaupun libur! / Enjoy your day! 💪"
+        else
+            # H-1, H-2, H-3
+            if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
+                DAYS_TEXT="Besok | Tomorrow"
+            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
+                DAYS_TEXT="Lusa | In 2 days"
+            else
+                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi | ${DAYS_UNTIL_HOLIDAY} days left"
+            fi
+            MESSAGE="🌤️ *REMINDER LIBUR JEPANG ${DAYS_TEXT}*
+
+${DAYS_TEXT}: **${NAME_ID}** | **${NAME_EN}**
+🇯🇵 ${NAME_JA}
+
+Happy holiday weekend! 🎉"
         fi
         ;;
     15)
-        if [ "${DAY_TYPE}" = "h-1" ]; then
-            MESSAGE="🌥️ *H-1 LIBUR JEPANG - JAPAN HOLIDAY TOMORROW*
-
-Besok libur: **${NAME_ID}** (${NAME_EN})
-Tomorrow is: **${NAME_EN}** (${NAME_ID})
-
-Siapin rencana liburnya! / Get ready for the holiday! 🎌"
-        else
+        if [ "${DAY_TYPE}" = "h" ]; then
             MESSAGE="🌥️ *SELAMAT HARI LIBUR - HAPPY HOLIDAY*
 
 Merayakan **${NAME_ID}** 🇯🇵 | Celebrating **${NAME_EN}** 🇯🇵
@@ -206,24 +271,47 @@ Merayakan **${NAME_ID}** 🇯🇵 | Celebrating **${NAME_EN}** 🇯🇵
 ${NAME_JA} - ${NAME_EN}
 
 Enjoy your day! 🎌"
+        else
+            # H-1, H-2, H-3
+            if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
+                DAYS_TEXT="Besok"
+            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
+                DAYS_TEXT="Lusa"
+            else
+                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi"
+            fi
+            MESSAGE="🌥️ *LIBUR JEPANG ${DAYS_TEXT}*
+
+${DAYS_TEXT} libur: **${NAME_ID}** (${NAME_EN})
+${DAYS_TEXT} is a holiday: **${NAME_EN}** (${NAME_ID})
+
+Siapin rencana liburnya! / Get ready for the holiday! 🎌"
         fi
         ;;
     18)
-        if [ "${DAY_TYPE}" = "h-1" ]; then
-            MESSAGE="🌆 *PENGINGAT MALAM - EVENING REMINDER*
-
-Besok libur Jepang: **${NAME_ID}** 🇯🇵
-Tomorrow is Japan holiday: **${NAME_EN}** 🇯🇵
-
-${NAME_JA} (${NAME_EN})
-
-Selamat menikmati libur! / Enjoy the holiday! 🎉"
-        else
+        if [ "${DAY_TYPE}" = "h" ]; then
             MESSAGE="🌆 *LIBUR JEPANG HARI INI - JAPAN HOLIDAY TODAY*
 
 **${NAME_ID}** (${NAME_JA}) | **${NAME_EN}** (${NAME_JA})
 
 Semoga harimu menyenangkan! / Have a wonderful day! 🎉🇯🇵"
+        else
+            # H-1, H-2, H-3
+            if [ ${DAYS_UNTIL_HOLIDAY} -eq 1 ]; then
+                DAYS_TEXT="Besok | Tomorrow"
+            elif [ ${DAYS_UNTIL_HOLIDAY} -eq 2 ]; then
+                DAYS_TEXT="Lusa | In 2 days"
+            else
+                DAYS_TEXT="${DAYS_UNTIL_HOLIDAY} hari lagi | ${DAYS_UNTIL_HOLIDAY} days left"
+            fi
+            MESSAGE="🌆 *PENGINGAT MALAM - EVENING REMINDER*
+
+${DAYS_TEXT} libur Jepang: **${NAME_ID}** 🇯🇵
+${DAYS_TEXT} is Japan holiday: **${NAME_EN}** 🇯🇵
+
+${NAME_JA} (${NAME_EN})
+
+Selamat menikmati libur! / Enjoy the holiday! 🎉"
         fi
         ;;
 esac

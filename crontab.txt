@@ -1,6 +1,6 @@
 # Japanese Holiday Reminder Crontab
 # Runs at 6:00, 9:00, 12:00, 15:00, 18:00 every day
-# The script will check if today/tomorrow is a holiday before sending
+# The script handles weekend logic (Fri checks weekend, Sat/Sun check Mon)
 
 # Bash version (recommended - no Python dependency)
 0 6 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder.sh
