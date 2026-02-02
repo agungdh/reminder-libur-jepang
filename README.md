@@ -6,7 +6,13 @@ Reminder otomatis untuk libur nasional Jepang tahun 2026 via WhatsApp.
 
 - ✅ Cek otomatis libur nasional Jepang 2026
 - ✅ Pengingat H-1 (sehari sebelum libur)
+- ✅ Pengingat H-2 (dari Sabtu ke Senin libur)
 - ✅ Pengingat H (hari libur)
+- ✅ Smart weekend logic:
+  - **Sabtu/Minggu**: tidak kirim pesan "hari ini libur"
+  - **Jumat**: tidak kirim pengingat untuk Sabtu/Minggu (weekend)
+  - **Sabtu**: kirim pengingat kalau Senin libur (H-2)
+  - **Minggu**: kirim pengingat kalau Senin libur (H-1)
 - ✅ Pengiriman jam 06:00, 09:00, 12:00, 15:00, 18:00
 - ✅ Support multiple recipients
 - ✅ Pesan bilingual (Indonesia + Inggris)
@@ -92,7 +98,15 @@ TEST_DATE=2026-01-01 TEST_HOUR=9 ./send-reminder.sh
 
 # Test Golden Week
 TEST_DATE=2026-04-28 TEST_HOUR=12 ./send-reminder.sh
+
+# Test weekend logic (Sabtu, cek Senin libur)
+TEST_DATE=2026-04-25 TEST_DOW=6 TEST_HOUR=6 ./send-reminder.sh
+
+# Test weekend logic (Minggu, cek Senin libur)
+TEST_DATE=2026-04-26 TEST_DOW=7 TEST_HOUR=6 ./send-reminder.sh
 ```
+
+### Test jam yang tersedia (untuk message template berbeda):
 
 ### Test jam yang tersedia (untuk message template berbeda):
 
@@ -125,6 +139,7 @@ Log disimpan di folder `logs/` dengan format `reminder-YYYYMMDD.log`.
 | `WAHA_CHATS` | Yes | Nomor WhatsApp (bisa multiple, pisah spasi) |
 | `TEST_DATE` | No | Tanggal test (format: YYYY-MM-DD) |
 | `TEST_HOUR` | No | Jam test (6, 9, 12, 15, atau 18) |
+| `TEST_DOW` | No | Day of week test (1=Senin, 7=Minggu) |
 
 ## Credits
 
