@@ -1,7 +1,5 @@
 .env
 logs/
-*.pyc
-__pycache__/
 *.swp
 *.swo
 *~
