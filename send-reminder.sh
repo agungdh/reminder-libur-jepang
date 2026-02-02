@@ -38,25 +38,31 @@ CURRENT_HOUR=$(date +%H)
 TODAY=$(date +%Y-%m-%d)
 TOMORROW=$(date -d tomorrow +%Y-%m-%d)
 
-# Valid reminder hours
-VALID_HOURS=("06" "09" "12" "15" "18")
+# Test mode - use TEST_HOUR if set
+if [ -n "${TEST_HOUR}" ]; then
+    HOUR_INT=${TEST_HOUR}
+    log "TEST MODE: Using hour ${HOUR_INT}"
+else
+    # Valid reminder hours
+    VALID_HOURS=("06" "09" "12" "15" "18")
 
-# Check if current hour is valid
-HOUR_VALID=0
-for H in "${VALID_HOURS[@]}"; do
-    if [ "${CURRENT_HOUR}" = "${H}" ]; then
-        HOUR_VALID=1
-        break
+    # Check if current hour is valid
+    HOUR_VALID=0
+    for H in "${VALID_HOURS[@]}"; do
+        if [ "${CURRENT_HOUR}" = "${H}" ]; then
+            HOUR_VALID=1
+            break
+        fi
+    done
+
+    if [ ${HOUR_VALID} -eq 0 ]; then
+        log "INFO: Current hour ${CURRENT_HOUR} is not a valid reminder time"
+        exit 0
     fi
-done
 
-if [ ${HOUR_VALID} -eq 0 ]; then
-    log "INFO: Current hour ${CURRENT_HOUR} is not a valid reminder time"
-    exit 0
+    # Extract hour as integer for message selection
+    HOUR_INT=$((10#${CURRENT_HOUR}))
 fi
-
-# Extract hour as integer for message selection
-HOUR_INT=$((10#${CURRENT_HOUR}))
 
 # Function to get holiday info from JSON
 get_holiday() {
