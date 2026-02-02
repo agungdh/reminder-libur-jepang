@@ -126,186 +126,98 @@ else
     exit 0
 fi
 
-# Generate message based on language, hour and day type
-if [ "${LANGUAGE}" = "en" ]; then
-    # English messages
-    case ${HOUR_INT} in
-        6)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌅 *JAPAN HOLIDAY REMINDER*
-
-Tomorrow is a Japanese national holiday: **${NAME_EN}** (${NAME_JA}) 🇯🇵
-
-Don't forget to prepare!"
-            else
-                MESSAGE="🌅 *HAPPY JAPAN NATIONAL HOLIDAY!*
-
-Today is: **${NAME_EN}** 🇯🇵
-🎌 ${NAME_JA}
-
-Happy holiday! 🎉"
-            fi
-            ;;
-        9)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="☀️ *TOMORROW IS JAPAN HOLIDAY!*
-
-🎌 ${NAME_EN}
-📛 ${NAME_JA}
-📝 ${NAME_ID}
-
-Have a great plan!"
-            else
-                MESSAGE="☀️ *TODAY IS JAPAN HOLIDAY!*
-
-🎌 ${NAME_EN}
-📛 ${NAME_JA}
-📝 ${NAME_ID}
-
-Happy holiday! 🇯🇵"
-            fi
-            ;;
-        12)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌤️ *REMINDER: JAPAN HOLIDAY TOMORROW*
-
-Tomorrow: **${NAME_EN}**
-🇯🇵 ${NAME_JA}
-
-Have a nice holiday! 🎉"
-            else
-                MESSAGE="🌤️ *JAPAN NATIONAL HOLIDAY*
-
-Today: **${NAME_EN}** (${NAME_JA})
-
-Enjoy your day! 💪"
-            fi
-            ;;
-        15)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌥️ *JAPAN HOLIDAY TOMORROW*
-
-Tomorrow is: **${NAME_EN}** (${NAME_ID})
-
-Get ready for the holiday! 🎌"
-            else
-                MESSAGE="🌥️ *HAPPY HOLIDAY*
-
-Celebrating **${NAME_EN}** 🇯🇵
-
-${NAME_JA} - ${NAME_ID}
-
-Enjoy your day! 🎌"
-            fi
-            ;;
-        18)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌆 *EVENING REMINDER*
-
-Tomorrow is Japan holiday: **${NAME_EN}** 🇯🇵
-
-${NAME_JA} (${NAME_ID})
-
-Enjoy the holiday! 🎉"
-            else
-                MESSAGE="🌆 *JAPAN HOLIDAY TODAY*
-
-**${NAME_EN}** (${NAME_JA})
-
-Have a wonderful day! 🎉🇯🇵"
-            fi
-            ;;
-    esac
-else
-    # Indonesian messages (default)
-    case ${HOUR_INT} in
-        6)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌅 *PENGINGAT LIBUR JEPANG*
+# Generate message based on hour and day type (bilingual: ID + EN)
+case ${HOUR_INT} in
+    6)
+        if [ "${DAY_TYPE}" = "h-1" ]; then
+            MESSAGE="🌅 *PENGINGAT LIBUR JEPANG - JAPAN HOLIDAY REMINDER*
 
 Besok libur nasional Jepang: **${NAME_ID}** (${NAME_JA}) 🇯🇵
+Tomorrow is a Japanese national holiday: **${NAME_EN}** (${NAME_JA}) 🇯🇵
 
-Jangan lupa persiapan ya!"
-            else
-                MESSAGE="🌅 *SELAMAT LIBUR NASIONAL JEPANG!*
+Jangan lupa persiapan ya! / Don't forget to prepare!"
+        else
+            MESSAGE="🌅 *SELAMAT LIBUR NASIONAL JEPANG - HAPPY JAPAN NATIONAL HOLIDAY!*
 
-Hari ini: **${NAME_ID}** 🇯🇵
+Hari ini: **${NAME_ID}** 🇯🇵 | Today: **${NAME_EN}** 🇯🇵
 🎌 ${NAME_JA}
 
 Happy holiday! 🎉"
-            fi
-            ;;
-        9)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="☀️ *BESOK LIBUR JEPANG!*
+        fi
+        ;;
+    9)
+        if [ "${DAY_TYPE}" = "h-1" ]; then
+            MESSAGE="☀️ *BESOK LIBUR JEPANG - TOMORROW IS JAPAN HOLIDAY!*
 
-🎌 ${NAME_ID}
+🎌 ${NAME_ID} | ${NAME_EN}
 📛 ${NAME_JA}
 📝 ${NAME_EN}
 
-Semoga rencanamu lancar!"
-            else
-                MESSAGE="☀️ *HARI INI LIBUR JEPANG!*
+Semoga rencanamu lancar! / Have a great plan!"
+        else
+            MESSAGE="☀️ *HARI INI LIBUR JEPANG - TODAY IS JAPAN HOLIDAY!*
 
-🎌 ${NAME_ID}
+🎌 ${NAME_ID} | ${NAME_EN}
 📛 ${NAME_JA}
 📝 ${NAME_EN}
 
-Selamat hari libur! 🇯🇵"
-            fi
-            ;;
-        12)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌤️ *REMINDER H-1 LIBUR JEPANG*
+Selamat hari libur! / Happy holiday! 🇯🇵"
+        fi
+        ;;
+    12)
+        if [ "${DAY_TYPE}" = "h-1" ]; then
+            MESSAGE="🌤️ *REMINDER H-1 LIBUR JEPANG*
 
-Besok: **${NAME_ID}**
+Besok: **${NAME_ID}** | Tomorrow: **${NAME_EN}**
 🇯🇵 ${NAME_JA}
 
 Happy holiday weekend! 🎉"
-            else
-                MESSAGE="🌤️ *LIBUR NASIONAL JEPANG*
+        else
+            MESSAGE="🌤️ *LIBUR NASIONAL JEPANG - JAPAN NATIONAL HOLIDAY*
 
 Hari ini: **${NAME_ID}** (${NAME_JA})
+Today: **${NAME_EN}** (${NAME_JA})
 
-Tetap semangat walaupun libur! 💪"
-            fi
-            ;;
-        15)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌥️ *H-1 LIBUR JEPANG*
+Tetap semangat walaupun libur! / Enjoy your day! 💪"
+        fi
+        ;;
+    15)
+        if [ "${DAY_TYPE}" = "h-1" ]; then
+            MESSAGE="🌥️ *H-1 LIBUR JEPANG - JAPAN HOLIDAY TOMORROW*
 
 Besok libur: **${NAME_ID}** (${NAME_EN})
+Tomorrow is: **${NAME_EN}** (${NAME_ID})
 
-Siapin rencana liburnya! 🎌"
-            else
-                MESSAGE="🌥️ *SELAMAT HARI LIBUR*
+Siapin rencana liburnya! / Get ready for the holiday! 🎌"
+        else
+            MESSAGE="🌥️ *SELAMAT HARI LIBUR - HAPPY HOLIDAY*
 
-Merayakan **${NAME_ID}** 🇯🇵
+Merayakan **${NAME_ID}** 🇯🇵 | Celebrating **${NAME_EN}** 🇯🇵
 
 ${NAME_JA} - ${NAME_EN}
 
 Enjoy your day! 🎌"
-            fi
-            ;;
-        18)
-            if [ "${DAY_TYPE}" = "h-1" ]; then
-                MESSAGE="🌆 *PENGINGAT MALAM*
+        fi
+        ;;
+    18)
+        if [ "${DAY_TYPE}" = "h-1" ]; then
+            MESSAGE="🌆 *PENGINGAT MALAM - EVENING REMINDER*
 
 Besok libur Jepang: **${NAME_ID}** 🇯🇵
+Tomorrow is Japan holiday: **${NAME_EN}** 🇯🇵
 
 ${NAME_JA} (${NAME_EN})
 
-Selamat menikmati libur! 🎉"
-            else
-                MESSAGE="🌆 *LIBUR JEPANG HARI INI*
+Selamat menikmati libur! / Enjoy the holiday! 🎉"
+        else
+            MESSAGE="🌆 *LIBUR JEPANG HARI INI - JAPAN HOLIDAY TODAY*
 
-**${NAME_ID}** (${NAME_JA})
+**${NAME_ID}** (${NAME_JA}) | **${NAME_EN}** (${NAME_JA})
 
-Semoga harimu menyenangkan! 🎉🇯🇵"
-            fi
-            ;;
-    esac
-fi
+Semoga harimu menyenangkan! / Have a wonderful day! 🎉🇯🇵"
+        fi
+        ;;
+esac
 
 log "Sending message..."
 
