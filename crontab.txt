@@ -3,8 +3,8 @@
 # The script will check if today/tomorrow is a holiday before sending
 
 # Bash version (recommended - no Python dependency)
-0 6 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder-bash.sh
-0 9 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder-bash.sh
-0 12 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder-bash.sh
-0 15 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder-bash.sh
-0 18 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder-bash.sh
+0 6 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder.sh
+0 9 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder.sh
+0 12 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder.sh
+0 15 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder.sh
+0 18 * * * /home/agungdh/repo/reminder-libur-jepang/send-reminder.sh
